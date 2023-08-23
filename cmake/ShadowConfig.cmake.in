@@ -1,0 +1,74 @@
+# Copyright 2023 TikTok Pte. Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+macro(shadow_find_dependency dep)
+    find_dependency(${dep})
+    if(NOT ${dep}_FOUND)
+        if(NOT Shadow_FIND_QUIETLY)
+            message(WARNING "Could not find dependency `${dep}` required by this configuration")
+        endif()
+        set(Shadow_FOUND FALSE)
+        return()
+    endif()
+endmacro()
+
+set(Shadow_FOUND FALSE)
+
+set(SHADOW_DEBUG @SHADOW_DEBUG@)
+set(SHADOW_VERSION @SHADOW_VERSION@)
+set(SHADOW_VERSION_MAJOR @SHADOW_VERSION_MAJOR@)
+set(SHADOW_VERSION_MINOR @SHADOW_VERSION_MINOR@)
+set(SHADOW_VERSION_PATCH @SHADOW_VERSION_PATCH@)
+set(SHADOW_BUILD_TYPE @CMAKE_BUILD_TYPE@)
+
+set(SHADOW_CARRY_OPENSSL @SHADOW_CARRY_OPENSSL@)
+
+if (NOT SHADOW_CARRY_OPENSSL)
+    shadow_find_dependency(OpenSSL)
+endif()
+
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+shadow_find_dependency(Threads)
+
+# Add the current directory to the module search path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+include(${CMAKE_CURRENT_LIST_DIR}/ShadowTargets.cmake)
+
+if(TARGET Shadow::fpe)
+    set(Shadow_FOUND TRUE)
+endif()
+
+if(Shadow_FOUND)
+    if(NOT Shadow_FIND_QUIETLY)
+        message(STATUS "Shadow -> Version ${Shadow_VERSION} detected")
+    endif()
+    if(SHADOW_DEBUG AND NOT Shadow_FIND_QUIETLY)
+        message(STATUS "Performance warning: Shadow compiled in debug mode")
+    endif()
+    set(Shadow_TARGETS_AVAILABLE "Shadow Targets available: Shadow::fpe")
+
+    if(NOT Shadow_FIND_QUIETLY)
+        message(STATUS ${Shadow_TARGETS_AVAILABLE})
+    endif()
+else()
+    if(NOT Shadow_QUIETLY)
+        message(STATUS "Shadow -> NOT FOUND")
+    endif()
+endif()
