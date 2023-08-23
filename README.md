@@ -34,17 +34,27 @@ The implementation and optimization are inspired by several existing works list 
 Assume that all commands presented below are executed in the root directory of Shadowgraphy.
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
 Output binaries can be found in `build/lib/` and `build/bin/` directories.
 
-| Compile Options        | Values | Default  | Description                                |
-|------------------------|--------|----------|--------------------------------------------|
-| `SHADOW_BUILD_TEST`    | ON/OFF | OFF      | Build C++ and C export test if set to ON.  |
-| `SHADOW_BUILD_EXAMPLE` | ON/OFF | OFF      | Build C++ example if set to ON.            |
-| `SHADOW_BUILD_UTILS`   | ON/OFF | OFF      | Download and build utilities if set to ON. |
+| Compile Options         | Values | Default | Description                                |
+|-------------------------|--------|---------|--------------------------------------------|
+| `SHADOW_BUILD_TEST`     | ON/OFF | OFF     | Build C++ and C export test if set to ON.  |
+| `SHADOW_BUILD_EXAMPLE`  | ON/OFF | OFF     | Build C++ example if set to ON.            |
+| `SHADOW_BUILD_UTILS`    | ON/OFF | OFF     | Download and build utilities if set to ON. |
+| `SHADOW_BUILD_C_EXPORT` | ON/OFF | ON      | Build C export library.                    |
+
+#### Building C Export Libraries
+
+Assume that all commands presented below are executed in the root directory of Shadowgraphy.
+
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSHADOW_BUILD_C_EXPORT=ON
+cmake --build build -j
+```
 
 ## Using Shadowgraphy
 

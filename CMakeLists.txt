@@ -152,35 +152,56 @@ target_include_directories(common PRIVATE
 target_include_directories(common PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-###################
-# FPE C++ library #
-###################
+######################
+# SHADOW C++ library #
+######################
 
+# fpe
 add_library(fpe STATIC)
 target_sources(fpe PRIVATE ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe.cpp)
 target_compile_features(common PUBLIC cxx_std_14)
-target_include_directories(fpe PUBLIC
-    $<BUILD_INTERFACE:${SHADOW_INCLUDES_DIR}>
-    $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
-target_include_directories(fpe PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
-
+target_include_directories(fpe PUBLIC $<BUILD_INTERFACE:${SHADOW_INCLUDES_DIR}>
+                                      $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
+target_include_directories(fpe PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 target_link_libraries(fpe PRIVATE common)
 add_dependencies(fpe OpenSSL::crypto)
 target_include_directories(fpe PRIVATE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>)
 target_include_directories(fpe PRIVATE $<BUILD_INTERFACE:$<TARGET_PROPERTY:OpenSSL::crypto,BINARY_DIR>>)
 shadow_combine_archives(fpe OpenSSL::crypto)
 set(SHADOW_CARRY_OPENSSL TRUE)
-
 set_target_properties(fpe PROPERTIES VERSION ${SHADOW_VERSION})
 set_target_properties(fpe PROPERTIES OUTPUT_NAME fpe-${SHADOW_VERSION_MAJOR}.${SHADOW_VERSION_MINOR})
 if(TARGET fpe)
     add_library(Shadow::fpe ALIAS fpe)
 endif()
 
-##############
-# SHADOW C++ #
-##############
+###########################
+# SHADOW C export library #
+###########################
+
+# [option] SHADOW_BUILD_C_EXPORT (default: ON)
+set(SHADOW_BUILD_C_EXPORT_OPTION_STR "Build C export library for Shadow")
+option(SHADOW_BUILD_C_EXPORT ${SHADOW_BUILD_C_EXPORT_OPTION_STR} OFF)
+message(STATUS "SHADOW_BUILD_C_EXPORT: ${SHADOW_BUILD_C_EXPORT}")
+
+if(SHADOW_BUILD_C_EXPORT)
+    add_library(fpe_export SHARED)
+    target_sources(fpe_export PRIVATE ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe_export/fpe_export.cpp)
+    target_include_directories(fpe_export PUBLIC $<BUILD_INTERFACE:${SHADOW_INCLUDES_DIR}>
+                                                  $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
+    target_include_directories(fpe_export PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+    target_link_libraries(fpe_export PRIVATE fpe)
+    set_target_properties(fpe_export PROPERTIES VERSION ${SHADOW_VERSION})
+    set_target_properties(fpe_export PROPERTIES OUTPUT_NAME fpe_export)
+    set_target_properties(fpe_export PROPERTIES SOVERSION ${SHADOW_VERSION_MAJOR}.${SHADOW_VERSION_MINOR})
+    if(TARGET fpe_export)
+        add_library(Shadow::fpe_export ALIAS fpe_export)
+    endif()
+endif()
+
+##############################
+# SHADOW C++ / C export test #
+##############################
 
 # [option] SHADOW_BUILD_TEST
 set(SHADOW_BUILD_TEST_OPTION_STR "Build C++ test for SHADOW")
@@ -206,6 +227,10 @@ endif()
 if(SHADOW_BUILD_TEST)
     add_executable(fpe_test ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe_test.cpp)
     target_link_libraries(fpe_test PRIVATE fpe GTest::gtest)
+    if (SHADOW_BUILD_C_EXPORT)
+        add_executable(fpe_export_test ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe_export/fpe_export_test.cpp)
+        target_link_libraries(fpe_export_test PRIVATE fpe_export GTest::gtest)
+    endif()
 
     # In Debug mode, enable AddressSanitizer (and LeakSanitizer) on Unix-like platforms.
     if(SHADOW_DEBUG AND UNIX)
@@ -213,6 +238,10 @@ if(SHADOW_BUILD_TEST)
         # On Linux, LeakSanitizer is enabled by default.
         target_compile_options(fpe_test PUBLIC -fsanitize=address)
         target_link_options(fpe_test PUBLIC -fsanitize=address)
+        if (SHADOW_BUILD_C_EXPORT)
+            target_compile_options(fpe_export_test PUBLIC -fsanitize=address)
+            target_link_options(fpe_export_test PUBLIC -fsanitize=address)
+        endif()
         if(NOT APPLE)
             message(STATUS "Sanitizers enabled: address, leak")
         else()
