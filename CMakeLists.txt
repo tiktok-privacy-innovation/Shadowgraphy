@@ -230,6 +230,20 @@ if(SHADOW_BUILD_TEST)
     endif()
 endif()
 
+######################
+# SHADOW C++ example #
+######################
+
+# [option] SHADOW_BUILD_EXAMPLE
+set(SHADOW_BUILD_EXAMPLE_OPTION_STR "Build C++ example for SHADOW")
+option(SHADOW_BUILD_TEST ${SHADOW_BUILD_EXAMPLE_OPTION_STR} OFF)
+message(STATUS "SHADOW_BUILD_EXAMPLE: ${SHADOW_BUILD_EXAMPLE}")
+
+if(SHADOW_BUILD_EXAMPLE)
+    add_executable(fpe_example ${CMAKE_CURRENT_LIST_DIR}/example/fpe_example.cpp)
+    target_link_libraries(fpe_example PRIVATE fpe)
+endif()
+
 #################################
 # Installation and CMake config #
 #################################
