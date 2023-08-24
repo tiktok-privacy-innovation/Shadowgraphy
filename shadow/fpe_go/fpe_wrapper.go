@@ -1,6 +1,6 @@
 package fpe
 
-// #cgo LDFLAGS: -lfpe_export
+// #cgo LDFLAGS: -lshadow_fpe_export
 // #include "fpe_export.h"
 import "C"
 import (
