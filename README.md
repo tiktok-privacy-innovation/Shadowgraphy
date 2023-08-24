@@ -35,7 +35,7 @@ Encryption and decryption are an order of magnitude faster compared to a baselin
 | `SHADOW_BUILD_TEST`     | ON/OFF | OFF     | Build C++ and C export test if set to ON.  |
 | `SHADOW_BUILD_EXAMPLE`  | ON/OFF | OFF     | Build C++ example if set to ON.            |
 | `SHADOW_BUILD_UTILS`    | ON/OFF | OFF     | Download and build utilities if set to ON. |
-| `SHADOW_BUILD_C_EXPORT` | ON/OFF | ON      | Build C export library.                    |
+| `SHADOW_BUILD_C_EXPORT` | ON/OFF | OFF      | Build C export library.                    |
 
 Assume that all commands presented below are executed in the root directory of Shadowgraphy.
 
@@ -67,11 +67,13 @@ CGO_LDFLAGS='-L../../build/lib' go test ./
 
 ## Using Shadowgraphy
 
+We provide examples on how to use Shadowgraphy in the directory ["example"](example).
+
 ### Format-Preserving Encryption
 
 We provide example codes for all the use cases described below.
 You can find them in "example/fpe_example.cpp".
-To compile the example code, simply turn on the option `SHADOW_BUILD_EXAMPLE` when you build Shadowgraphy, and the executable can be found in `build/bin/`.
+To compile the example code, simply turn on the option `SHADOW_BUILD_EXAMPLE` when you build Shadowgraphy, and the executable can be found in "build/bin/".
 
 Before using format-preserving encryption, there are some questions that you should consider first:
 

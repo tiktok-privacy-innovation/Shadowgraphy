@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "shadow/fpe/fpe.h"
-#include "shadow/fpe/fpe_internal.h"
 
 int main(int argc, char** argv) {
     // Example 1: credit card number

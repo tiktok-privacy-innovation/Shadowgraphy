@@ -151,15 +151,27 @@ target_include_directories(common PRIVATE
     $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
 target_include_directories(common PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+install(TARGETS common EXPORT ShadowTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 ######################
 # SHADOW C++ library #
 ######################
 
+set(SHADOW_CARRY_OPENSSL TRUE)
+
 # fpe
 add_library(fpe STATIC)
 target_sources(fpe PRIVATE ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe.cpp)
-target_compile_features(common PUBLIC cxx_std_14)
+install(
+    FILES
+        ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe.h
+    DESTINATION
+        ${SHADOW_INCLUDES_INSTALL_DIR}/shadow/fpe
+)
+target_compile_features(fpe PUBLIC cxx_std_14)
 target_include_directories(fpe PUBLIC $<BUILD_INTERFACE:${SHADOW_INCLUDES_DIR}>
                                       $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
 target_include_directories(fpe PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
@@ -167,10 +179,13 @@ target_link_libraries(fpe PRIVATE common)
 add_dependencies(fpe OpenSSL::crypto)
 target_include_directories(fpe PRIVATE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>)
 target_include_directories(fpe PRIVATE $<BUILD_INTERFACE:$<TARGET_PROPERTY:OpenSSL::crypto,BINARY_DIR>>)
-shadow_combine_archives(fpe OpenSSL::crypto)
-set(SHADOW_CARRY_OPENSSL TRUE)
 set_target_properties(fpe PROPERTIES VERSION ${SHADOW_VERSION})
-set_target_properties(fpe PROPERTIES OUTPUT_NAME fpe-${SHADOW_VERSION_MAJOR}.${SHADOW_VERSION_MINOR})
+set_target_properties(fpe PROPERTIES OUTPUT_NAME shadow_fpe-${SHADOW_VERSION_MAJOR}.${SHADOW_VERSION_MINOR})
+shadow_combine_archives(fpe OpenSSL::crypto)
+install(TARGETS fpe EXPORT ShadowTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if(TARGET fpe)
     add_library(Shadow::fpe ALIAS fpe)
 endif()
@@ -192,8 +207,12 @@ if(SHADOW_BUILD_C_EXPORT)
     target_include_directories(fpe_export PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
     target_link_libraries(fpe_export PRIVATE fpe)
     set_target_properties(fpe_export PROPERTIES VERSION ${SHADOW_VERSION})
-    set_target_properties(fpe_export PROPERTIES OUTPUT_NAME fpe_export)
+    set_target_properties(fpe_export PROPERTIES OUTPUT_NAME shadow_fpe_export)
     set_target_properties(fpe_export PROPERTIES SOVERSION ${SHADOW_VERSION_MAJOR}.${SHADOW_VERSION_MINOR})
+    install(TARGETS fpe_export EXPORT ShadowTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     if(TARGET fpe_export)
         add_library(Shadow::fpe_export ALIAS fpe_export)
     endif()
@@ -269,10 +288,41 @@ option(SHADOW_BUILD_TEST ${SHADOW_BUILD_EXAMPLE_OPTION_STR} OFF)
 message(STATUS "SHADOW_BUILD_EXAMPLE: ${SHADOW_BUILD_EXAMPLE}")
 
 if(SHADOW_BUILD_EXAMPLE)
-    add_executable(fpe_example ${CMAKE_CURRENT_LIST_DIR}/example/fpe_example.cpp)
-    target_link_libraries(fpe_example PRIVATE fpe)
+    add_subdirectory(example)
 endif()
 
 #################################
 # Installation and CMake config #
 #################################
+
+# Create the CMake config file
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    ${SHADOW_CONFIG_IN_FILENAME} ${SHADOW_CONFIG_FILENAME}
+    INSTALL_DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# Install the export
+install(
+    EXPORT ShadowTargets
+    NAMESPACE Shadow::
+    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# Version file; we require exact version match for downstream
+write_basic_package_version_file(
+    ${SHADOW_CONFIG_VERSION_FILENAME}
+    VERSION ${SHADOW_VERSION}
+    COMPATIBILITY SameMinorVersion)
+
+# Install config and module files
+install(
+    FILES
+        ${SHADOW_CONFIG_FILENAME}
+        ${SHADOW_CONFIG_VERSION_FILENAME}
+    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# We export ShadowTargets from the build tree so it can be used by other projects
+# without requiring an install.
+export(
+    EXPORT ShadowTargets
+    NAMESPACE Shadow::
+    FILE ${SHADOW_TARGETS_FILENAME})
