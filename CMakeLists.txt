@@ -218,6 +218,43 @@ if(SHADOW_BUILD_C_EXPORT)
     endif()
 endif()
 
+
+#################################
+# Installation and CMake config #
+#################################
+
+# Create the CMake config file
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    ${SHADOW_CONFIG_IN_FILENAME} ${SHADOW_CONFIG_FILENAME}
+    INSTALL_DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# Install the export
+install(
+    EXPORT ShadowTargets
+    NAMESPACE Shadow::
+    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# Version file; we require exact version match for downstream
+write_basic_package_version_file(
+    ${SHADOW_CONFIG_VERSION_FILENAME}
+    VERSION ${SHADOW_VERSION}
+    COMPATIBILITY SameMinorVersion)
+
+# Install config and module files
+install(
+    FILES
+        ${SHADOW_CONFIG_FILENAME}
+        ${SHADOW_CONFIG_VERSION_FILENAME}
+    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
+
+# We export ShadowTargets from the build tree so it can be used by other projects
+# without requiring an install.
+export(
+    EXPORT ShadowTargets
+    NAMESPACE Shadow::
+    FILE ${SHADOW_TARGETS_FILENAME})
+
 ##############################
 # SHADOW C++ / C export test #
 ##############################
@@ -278,6 +315,35 @@ if(SHADOW_BUILD_TEST)
     endif()
 endif()
 
+####################
+# SHADOW C++ bench #
+####################
+
+# [option] SHADOW_BUILD_BENCH
+set(SHADOW_BUILD_BENCH_OPTION_STR "Build C++ benchmark for SHADOW")
+option(SHADOW_BUILD_BENCH ${SHADOW_BUILD_BENCH_OPTION_STR} OFF)
+message(STATUS "SHADOW_BUILD_BENCH: ${SHADOW_BUILD_BENCH}")
+
+# GoogleBenchmark
+if(SHADOW_BUILD_BENCH)
+    find_package(benchmark QUIET CONFIG)
+    if(benchmark_FOUND)
+        message(STATUS "GoogleBenchmark: found")
+    else()
+        if(SHADOW_BUILD_UTILS)
+            message(STATUS "GoogleBenchmark: download ...")
+            shadow_fetch_thirdparty_content(ExternalBenchmark)
+        else()
+            message(FATAL_ERROR "GoogleBenchmark: not found, please download and install manually")
+        endif()
+    endif()
+endif()
+
+if(SHADOW_BUILD_BENCH)
+    add_executable(fpe_bench ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe_bench.cpp)
+    target_link_libraries(fpe_bench PRIVATE fpe benchmark::benchmark)
+endif()
+
 ######################
 # SHADOW C++ example #
 ######################
@@ -290,39 +356,3 @@ message(STATUS "SHADOW_BUILD_EXAMPLE: ${SHADOW_BUILD_EXAMPLE}")
 if(SHADOW_BUILD_EXAMPLE)
     add_subdirectory(example)
 endif()
-
-#################################
-# Installation and CMake config #
-#################################
-
-# Create the CMake config file
-include(CMakePackageConfigHelpers)
-configure_package_config_file(
-    ${SHADOW_CONFIG_IN_FILENAME} ${SHADOW_CONFIG_FILENAME}
-    INSTALL_DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
-
-# Install the export
-install(
-    EXPORT ShadowTargets
-    NAMESPACE Shadow::
-    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
-
-# Version file; we require exact version match for downstream
-write_basic_package_version_file(
-    ${SHADOW_CONFIG_VERSION_FILENAME}
-    VERSION ${SHADOW_VERSION}
-    COMPATIBILITY SameMinorVersion)
-
-# Install config and module files
-install(
-    FILES
-        ${SHADOW_CONFIG_FILENAME}
-        ${SHADOW_CONFIG_VERSION_FILENAME}
-    DESTINATION ${SHADOW_CONFIG_INSTALL_DIR})
-
-# We export ShadowTargets from the build tree so it can be used by other projects
-# without requiring an install.
-export(
-    EXPORT ShadowTargets
-    NAMESPACE Shadow::
-    FILE ${SHADOW_TARGETS_FILENAME})
