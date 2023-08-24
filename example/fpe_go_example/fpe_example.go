@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	fpe "github.com/tiktok-privacy-innovation/Shadowgraphy/shadow/fpe_go"
+	fpe "github.com/tiktok-privacy-innovation/shadowgraphy/shadow/fpe_go"
 )
 
 func ExampleCreditCardNumber() {
