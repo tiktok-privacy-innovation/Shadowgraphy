@@ -227,14 +227,94 @@ Tweak::Tweak(const std::string& tweak) {
 static void digit_to_bn(
         std::uint32_t radix, BN_CTX* bn_ctx, const std::uint32_t* in, std::size_t num_digits, BIGNUM* bn_out) {
     BN_CTX_start(bn_ctx);
-    BIGNUM* bn_radix = BN_CTX_get(bn_ctx);
-    BN_set_word(bn_radix, radix);
-    BIGNUM* bn_in_i = BN_CTX_get(bn_ctx);
-    BN_set_word(bn_out, in[0]);
-    for (std::size_t i = 1; i < num_digits; i++) {
-        BN_mul(bn_out, bn_out, bn_radix, bn_ctx);
-        BN_set_word(bn_in_i, in[i]);
-        BN_add(bn_out, bn_out, bn_in_i);
+    std::size_t i = 1;
+
+    std::uint32_t out_32 = in[0];
+    std::uint32_t tmp_32 = out_32;
+    std::uint32_t inv_radix_32 = std::numeric_limits<std::uint32_t>::max() / radix;
+    for (; i < num_digits;) {
+        if (tmp_32 > inv_radix_32) {
+            break;
+        }
+        tmp_32 *= radix;
+        tmp_32 += in[i];
+        if (tmp_32 < in[i]) {
+            break;
+        }
+        out_32 = tmp_32;
+        i++;
+    }
+    if (i == num_digits) {
+        BN_lebin2bn(reinterpret_cast<unsigned char*>(&out_32), sizeof(std::uint32_t), bn_out);
+        BN_CTX_end(bn_ctx);
+        return;
+    }
+
+    std::uint64_t out_64 = out_32;
+    std::uint64_t tmp_64 = out_32;
+    std::uint64_t inv_radix_64 = std::numeric_limits<std::uint64_t>::max() / radix;
+    for (; i < num_digits;) {
+        if (tmp_64 > inv_radix_64) {
+            break;
+        }
+        tmp_64 *= radix;
+        tmp_64 += in[i];
+        if (tmp_64 < in[i]) {
+            break;
+        }
+        out_64 = tmp_64;
+        i++;
+    }
+    if (i == num_digits) {
+        BN_lebin2bn(reinterpret_cast<unsigned char*>(&out_64), sizeof(std::uint64_t), bn_out);
+        BN_CTX_end(bn_ctx);
+        return;
+    }
+
+    unsigned __int128 out_128 = out_64;
+    unsigned __int128 tmp_128 = out_64;
+    unsigned __int128 inv_radix_128 = std::numeric_limits<unsigned __int128>::max() / radix;
+    for (; i < num_digits;) {
+        if (tmp_128 > inv_radix_128) {
+            break;
+        }
+        tmp_128 *= radix;
+        tmp_128 += in[i];
+        if (tmp_128 < in[i]) {
+            break;
+        }
+        out_128 = tmp_128;
+        i++;
+    }
+
+    BN_lebin2bn(reinterpret_cast<unsigned char*>(&out_128), sizeof(unsigned __int128), bn_out);
+
+    if (i == num_digits) {
+        BN_CTX_end(bn_ctx);
+        return;
+    }
+
+    std::size_t radix_digist_num_lt_u32 =
+            static_cast<std::size_t>(std::floor(32.0 / std::log2(static_cast<double>(radix))));
+    std::vector<std::uint32_t> radix_pow_j(radix_digist_num_lt_u32, radix);
+    bool radix_filled_flag = false;
+
+    for (; i < num_digits; i += radix_digist_num_lt_u32) {
+        std::uint32_t u32_cache = in[i];
+        std::size_t j = 1;
+        std::size_t radix_max = radix;
+        for (; (j < radix_digist_num_lt_u32) && (i + j < num_digits); j++) {
+            u32_cache *= radix;
+            u32_cache += in[i + j];
+            if (!radix_filled_flag) {
+                radix_pow_j[j] = radix_pow_j[j - 1] * radix;
+            }
+        }
+        if (radix_pow_j[radix_digist_num_lt_u32 - 1] != radix) {
+            radix_filled_flag = true;
+        }
+        BN_mul_word(bn_out, radix_pow_j[j - 1]);
+        BN_add_word(bn_out, u32_cache);
     }
     BN_CTX_end(bn_ctx);
 }
@@ -244,45 +324,111 @@ static void digit_to_bn(
 static void bn_to_digit(
         std::uint32_t radix, BN_CTX* bn_ctx, const BIGNUM* in, std::size_t num_digits, std::uint32_t* out) {
     std::size_t in_byte_count = static_cast<std::size_t>(BN_num_bytes(in));
+    std::size_t i = 0;
+    BN_CTX_start(bn_ctx);
+    BIGNUM* bn_q = BN_CTX_get(bn_ctx);
+    BN_copy(bn_q, in);
+
+    std::size_t radix_digist_num_lt_u128 = 0;
+    std::size_t radix_digist_num_lt_u32 = 0;
+    std::uint32_t radix_lt_u32 = radix;
+    if (in_byte_count > sizeof(std::uint32_t)) {
+        radix_digist_num_lt_u128 = static_cast<std::size_t>(std::floor(128.0 / std::log2(static_cast<double>(radix))));
+        radix_digist_num_lt_u32 = radix_digist_num_lt_u128 / 4;
+        for (std::size_t j = 1; j < radix_digist_num_lt_u32; ++j) {
+            radix_lt_u32 *= radix;
+        }
+    }
+
+    if (in_byte_count > sizeof(unsigned __int128)) {
+        BIGNUM* bn_radix_lt_u128 = BN_CTX_get(bn_ctx);
+        BIGNUM* bn_exponent = BN_CTX_get(bn_ctx);
+        BN_set_word(bn_exponent, radix_digist_num_lt_u128);
+        BN_set_word(bn_radix_lt_u128, radix);
+        BN_exp(bn_radix_lt_u128, bn_radix_lt_u128, bn_exponent, bn_ctx);
+
+        BIGNUM* bn_rem = BN_CTX_get(bn_ctx);
+        for (; i < num_digits;) {
+            BN_div(bn_q, bn_rem, bn_q, bn_radix_lt_u128, bn_ctx);
+            unsigned __int128 q_128;
+            BN_bn2lebinpad(bn_rem, (unsigned char*)&q_128, sizeof(unsigned __int128));
+
+            std::size_t j = 0;
+            for (; j < 3; ++j) {
+                std::uint32_t q_32 = q_128 % radix_lt_u32;
+                for (std::size_t k = 0; k < radix_digist_num_lt_u32; ++k) {
+                    out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_32 % radix);
+                    q_32 /= radix;
+                    i++;
+                }
+                q_128 /= radix_lt_u32;
+            }
+
+            std::uint64_t q_64 = static_cast<std::uint64_t>(q_128);
+            for (std::size_t k = 0; k < radix_digist_num_lt_u128 - 3 * radix_digist_num_lt_u32; ++k) {
+                out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_64 % radix);
+                q_64 /= radix;
+                i++;
+            }
+
+            in_byte_count = static_cast<std::size_t>(BN_num_bytes(bn_q));
+            if (in_byte_count <= sizeof(unsigned __int128)) {
+                break;
+            }
+        }
+    }
+
     if (in_byte_count <= sizeof(std::uint32_t)) {
-        std::uint32_t q_32;
-        BN_bn2lebinpad(in, reinterpret_cast<unsigned char*>(&q_32), sizeof(std::uint32_t));
-        for (std::size_t i = 0; i < num_digits; i++) {
+        uint32_t q_32;
+        BN_bn2lebinpad(bn_q, (unsigned char*)&q_32, sizeof(std::uint32_t));
+        for (; i < num_digits; i++) {
             out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_32 % radix);
             q_32 /= radix;
         }
-        return;
-    }
-    if (in_byte_count <= sizeof(std::uint64_t)) {
-        std::uint64_t q_64;
-        BN_bn2lebinpad(in, reinterpret_cast<unsigned char*>(&q_64), sizeof(std::uint64_t));
-        for (std::size_t i = 0; i < num_digits; i++) {
-            out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_64 % radix);
-            q_64 /= radix;
-        }
-        return;
-    }
-    if (in_byte_count <= sizeof(unsigned __int128)) {
-        unsigned __int128 q_128;
-        BN_bn2lebinpad(in, reinterpret_cast<unsigned char*>(&q_128), sizeof(unsigned __int128));
-        for (std::size_t i = 0; i < num_digits; i++) {
-            out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_128 % radix);
-            q_128 /= radix;
-        }
+        BN_CTX_end(bn_ctx);
         return;
     }
 
-    BN_CTX_start(bn_ctx);
-    BIGNUM* bn_radix = BN_CTX_get(bn_ctx);
-    BN_set_word(bn_radix, radix);
-    BIGNUM* bn_r = BN_CTX_get(bn_ctx);
-    BIGNUM* bn_q = BN_CTX_get(bn_ctx);
-    BN_copy(bn_q, in);
-    for (std::size_t i = 0; i < num_digits; i++) {
-        BN_div(bn_q, bn_r, bn_q, bn_radix, bn_ctx);
-        out[num_digits - 1 - i] = static_cast<std::uint32_t>(BN_get_word(bn_r));
+    if (in_byte_count <= sizeof(std::uint64_t)) {
+        uint64_t q_64;
+        BN_bn2lebinpad(bn_q, (unsigned char*)&q_64, sizeof(std::uint64_t));
+        std::uint32_t q_32 = q_64 % radix_lt_u32;
+        q_64 = q_64 / radix_lt_u32;
+        for (std::size_t k = 0; k < radix_digist_num_lt_u32 && i < num_digits; ++k) {
+            out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_32 % radix);
+            q_32 /= radix;
+            i++;
+        }
+        for (; i < num_digits; i++) {
+            out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_64 % radix);
+            q_64 /= radix;
+        }
+        BN_CTX_end(bn_ctx);
+        return;
     }
-    BN_CTX_end(bn_ctx);
+
+    if (in_byte_count <= sizeof(unsigned __int128)) {
+        unsigned __int128 q_128;
+        BN_bn2lebinpad(bn_q, (unsigned char*)&q_128, sizeof(unsigned __int128));
+        std::size_t j = 0;
+        for (; j < 3; ++j) {
+            std::uint32_t q_32 = q_128 % radix_lt_u32;
+            for (std::size_t k = 0; k < radix_digist_num_lt_u32 && i < num_digits; ++k) {
+                out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_32 % radix);
+                q_32 /= radix;
+                i++;
+            }
+            q_128 /= radix_lt_u32;
+        }
+        std::uint64_t q_64 = static_cast<std::uint64_t>(q_128);
+        for (std::size_t k = 0; k < radix_digist_num_lt_u128 - 3 * radix_digist_num_lt_u32 && i < num_digits; ++k) {
+            out[num_digits - 1 - i] = static_cast<std::uint32_t>(q_64 % radix);
+            q_64 /= radix;
+            i++;
+        }
+        BN_CTX_end(bn_ctx);
+        return;
+    }
 }
 
 // See Section 3.3 in https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf.
