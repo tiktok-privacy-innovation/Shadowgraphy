@@ -1,6 +1,6 @@
 # Shadowgraphy
 
-Shadowgraphy is a collection of cryptographic pseudonymization techniques implemented in C/C++.
+Shadowgraphy is a collection of cryptographic pseudonymization techniques implemented in C/C++ and wrapped in Go.
 
 ## Supported Cryptographic Algorithms
 
@@ -16,7 +16,7 @@ The implementation and optimization are inspired by several existing works list 
 
 ## Building Shadowgraphy Components
 
-### Building C++ Core
+### Building C++ Core Libraries
 
 #### Requirements
 
@@ -29,16 +29,7 @@ The implementation and optimization are inspired by several existing works list 
 |----------------------------------------------------|----------------|-------------------|
 | [GoogleTest](https://github.com/google/googletest) | 1.12.1         | For running tests |
 
-#### Building C++ Core Libraries
-
-Assume that all commands presented below are executed in the root directory of Shadowgraphy.
-
-```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-```
-
-Output binaries can be found in `build/lib/` and `build/bin/` directories.
+#### CMake Options
 
 | Compile Options         | Values | Default | Description                                |
 |-------------------------|--------|---------|--------------------------------------------|
@@ -47,7 +38,16 @@ Output binaries can be found in `build/lib/` and `build/bin/` directories.
 | `SHADOW_BUILD_UTILS`    | ON/OFF | OFF     | Download and build utilities if set to ON. |
 | `SHADOW_BUILD_C_EXPORT` | ON/OFF | ON      | Build C export library.                    |
 
-#### Building C Export Libraries
+Assume that all commands presented below are executed in the root directory of Shadowgraphy.
+
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+Output binaries can be found in "build/lib/" and "build/bin/" directories.
+
+### Building C Export Libraries
 
 Assume that all commands presented below are executed in the root directory of Shadowgraphy.
 
@@ -56,10 +56,10 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DSHADOW_BUILD_C_EXPORT=ON
 cmake --build build -j
 ```
 
-#### Building Go Wrapper
+### Building Go Wrapper
 
 Assume that C export libraries are already built and stored in the "build/lib" directory.
-Pass `CGO_LDFLAGS='-L../../build/lib''` to build or test Go wrappers.
+Pass `CGO_LDFLAGS='-L../../build/lib'` to build or test Go wrappers.
 For example, to test Go wrappers, execute the following comment from the directory "shadow/fpe_go".
 
 ```bash
@@ -91,12 +91,12 @@ The alphabet here is "0123456789".
 Here is minimalism code sample in C++ that encrypts a credit card number using format-preserving encryption.
 
 ```c++
-    shadow::fpe::Alphabet alphabet(shadow::fpe::kCharsetNumbers);
-    std::string pt = "4263982640269299";
-    std::string ct;
-    shadow::fpe::Key key({0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C});
-    shadow::fpe::encrypt(alphabet, key, shadow::fpe::Tweak(), pt, ct);
-    // output: "1689887046359822"
+shadow::fpe::Alphabet alphabet(shadow::fpe::kCharsetNumbers);
+std::string pt = "4263982640269299";
+std::string ct;
+shadow::fpe::Key key({0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C});
+shadow::fpe::encrypt(alphabet, key, shadow::fpe::Tweak(), pt, ct);
+// output: "1689887046359822"
 ```
 
 Tweaks are some plaintext values that can be regarded as a changeable part of the key.
@@ -111,10 +111,10 @@ If, however, the other ten digits had been the tweak for the encryption of the m
 This code block follows the previous code block.
 
 ```c++
-    // input: "264026"
-    // tweak: "4263989299"
-    shadow::fpe::encrypt(alphabet, key, shadow::fpe::Tweak(pt.substr(0, 6) + pt.substr(12, 4)), pt.substr(6, 6), ct);
-    // output: "514968"
+// input: "264026"
+// tweak: "4263989299"
+shadow::fpe::encrypt(alphabet, key, shadow::fpe::Tweak(pt.substr(0, 6) + pt.substr(12, 4)), pt.substr(6, 6), ct);
+// output: "514968"
 ```
 
 #### Example 2: Email Address
@@ -126,9 +126,9 @@ Special characters such as '@' and '.' are also encrypted and consequently put i
 The same key is used here.
 
 ```c++
-    shadow::fpe::Alphabet alphabet_email_1(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase + "@.");
-    shadow::fpe::encrypt(alphabet_email_1, key, shadow::fpe::Tweak(), "my.personal.email@hotmail.com", ct);
-    // output: ri6lur.mqsaai92lmbxa5s4@ntqso
+shadow::fpe::Alphabet alphabet_email_1(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase + "@.");
+shadow::fpe::encrypt(alphabet_email_1, key, shadow::fpe::Tweak(), "my.personal.email@hotmail.com", ct);
+// output: ri6lur.mqsaai92lmbxa5s4@ntqso
 ```
 
 As you can see, the encryption result does not preserve any email address format and it just looks like a random string.
@@ -137,8 +137,8 @@ An alternative here is that we can leave the special characters ('@' and '.') as
 We provide an API `encrypt_skip_unsupported()` to encrypt the plaintext meanwhile excluding characters that are not in the alphabet ('@' and '.' in this example).
 
 ```c++
-    shadow::fpe::Alphabet alphabet_email_2(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase);
-    shadow::fpe::encrypt_skip_unsupported(alphabet_email_2, key, shadow::fpe::Tweak(), "my.personal.email@hotmail.com", ct);
+shadow::fpe::Alphabet alphabet_email_2(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase);
+shadow::fpe::encrypt_skip_unsupported(alphabet_email_2, key, shadow::fpe::Tweak(), "my.personal.email@hotmail.com", ct);
 // output: "2s.48hwgyu0.yn12e@vvfbunl.cua"
 ```
 
@@ -151,8 +151,8 @@ If you want to add tweaks for email address encryption, one good candidate is th
 You can treat the prefix (the parts before '@') as the message to encrypt and use the part after '@' as the tweak.
 
 ```c++
-    shadow::fpe::encrypt_skip_unsupported(alphabet_email_2, key, shadow::fpe::Tweak("@hotmail.com"), "my.personal.email", ct);
-    // output: "ws.sx9n2dir.pyqvb"
+shadow::fpe::encrypt_skip_unsupported(alphabet_email_2, key, shadow::fpe::Tweak("@hotmail.com"), "my.personal.email", ct);
+// output: "ws.sx9n2dir.pyqvb"
 ```
 
 #### Example 3: Physical Address
@@ -160,10 +160,10 @@ You can treat the prefix (the parts before '@') as the message to encrypt and us
 Physical addresses share a similar format to email addresses, while the special characters here are spaces and commas.
 
 ```c++
-    shadow::fpe::Alphabet alphabet_address(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase);
-    std::string pt_address= "6666 fpe avenue , san jose, ca, 94000";
-    shadow::fpe::encrypt_skip_unsupported(alphabet_address, key, shadow::fpe::Tweak(), pt_address, ct);
-    // output: "nxr7 sau 0c930c , h0j k59r, vs, n0exe"
+shadow::fpe::Alphabet alphabet_address(shadow::fpe::kCharsetNumbers + shadow::fpe::kCharsetLettersLowercase);
+std::string pt_address= "6666 fpe avenue , san jose, ca, 94000";
+shadow::fpe::encrypt_skip_unsupported(alphabet_address, key, shadow::fpe::Tweak(), pt_address, ct);
+// output: "nxr7 sau 0c930c , h0j k59r, vs, n0exe"
 ```
 
 If you want to preserve the format of street numbers and zip codes (e.g., encryptions of digits are still digits, and encryptions of letters remain letters), you can use `encrypt_skip_unsupported()` twice.
@@ -171,10 +171,10 @@ In the first round of the encryption, you use `kCharsetNumbers` as the alphabet 
 In the second round, you use `kCharsetLettersLowercase` as the alphabet, so that the function skips all numbers and encrypts only letters.
 
 ```c++
-    std::string ct_temp;
-    shadow::fpe::encrypt_skip_unsupported(shadow::fpe::Alphabet(shadow::fpe::kCharsetNumbers), key, shadow::fpe::Tweak(), pt_address, ct_temp);
-    shadow::fpe::encrypt_skip_unsupported(shadow::fpe::Alphabet(shadow::fpe::kCharsetLettersLowercase), key, shadow::fpe::Tweak(), ct_temp, ct);
-    // output: "5014 dpl rurqiz , eau qtwp, xu, 01756"
+std::string ct_temp;
+shadow::fpe::encrypt_skip_unsupported(shadow::fpe::Alphabet(shadow::fpe::kCharsetNumbers), key, shadow::fpe::Tweak(), pt_address, ct_temp);
+shadow::fpe::encrypt_skip_unsupported(shadow::fpe::Alphabet(shadow::fpe::kCharsetLettersLowercase), key, shadow::fpe::Tweak(), ct_temp, ct);
+// output: "5014 dpl rurqiz , eau qtwp, xu, 01756"
 ```
 
 There are more options for physical addresses.
