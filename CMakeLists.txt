@@ -29,7 +29,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type (CMAKE_BUILD_TYPE): ${CMAKE_BUILD_TYPE}")
 
-project(SHADOW VERSION 0.0.0 LANGUAGES C CXX)
+project(SHADOW VERSION 0.1.0 LANGUAGES C CXX)
 
 ########################
 # Global configuration #
