@@ -207,6 +207,17 @@ TEST(FPETest, EncryptDecrypt) {
         ASSERT_EQ(pt_check, "0123456789");
     }
     {
+        Alphabet alphabet("0123456789ABCDEF");
+        string pt = "0123456789";
+        string ct;
+        string pt_check;
+        vector<unsigned char> tweak = {0x39, 0x38, 0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x30};
+        Key key({0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C});
+        encrypt(alphabet, key, tweak, pt, ct);
+        decrypt(alphabet, key, tweak, ct, pt_check);
+        ASSERT_EQ(pt_check, "0123456789");
+    }
+    {
         Alphabet alphabet(kCharsetNumbers + kCharsetLettersLowercase);
         string pt = "0123456789abcdefghi";
         string ct;

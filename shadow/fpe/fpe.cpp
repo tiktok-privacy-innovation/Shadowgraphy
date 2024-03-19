@@ -295,7 +295,7 @@ static void digit_to_bn(
     }
 
     std::size_t radix_digist_num_lt_u32 =
-            static_cast<std::size_t>(std::floor(32.0 / std::log2(static_cast<double>(radix))));
+            static_cast<std::size_t>(std::ceil(32.0 / std::log2(static_cast<double>(radix)))) - 1;
     std::vector<std::uint32_t> radix_pow_j(radix_digist_num_lt_u32, radix);
     bool radix_filled_flag = false;
 
@@ -333,7 +333,8 @@ static void bn_to_digit(
     std::size_t radix_digist_num_lt_u32 = 0;
     std::uint32_t radix_lt_u32 = radix;
     if (in_byte_count > sizeof(std::uint32_t)) {
-        radix_digist_num_lt_u128 = static_cast<std::size_t>(std::floor(128.0 / std::log2(static_cast<double>(radix))));
+        radix_digist_num_lt_u128 =
+                static_cast<std::size_t>(std::ceil(128.0 / std::log2(static_cast<double>(radix)))) - 1;
         radix_digist_num_lt_u32 = radix_digist_num_lt_u128 / 4;
         for (std::size_t j = 1; j < radix_digist_num_lt_u32; ++j) {
             radix_lt_u32 *= radix;
