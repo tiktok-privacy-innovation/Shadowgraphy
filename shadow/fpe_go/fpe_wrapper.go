@@ -1,6 +1,5 @@
 package fpe
 
-// #cgo LDFLAGS: -lshadow_fpe_export
 // #include "fpe_export.h"
 import "C"
 import (
@@ -101,7 +100,7 @@ func keyToBytes(key *C.FPEKey) ([]byte, error) {
 	defer C.free(unsafe.Pointer(cData))
 
 	cBytes := C.FPEBytes{}
-	cBytes.data =  (*C.char)(cData)
+	cBytes.data = (*C.char)(cData)
 	cBytes.len = C.size_t(ShadowFPEKeyByteCount)
 
 	cStatus := C.fpe_key_to_bytes(key, &cBytes)

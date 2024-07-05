@@ -196,7 +196,7 @@ endif()
 
 # [option] SHADOW_BUILD_C_EXPORT (default: ON)
 set(SHADOW_BUILD_C_EXPORT_OPTION_STR "Build C export library for Shadow")
-option(SHADOW_BUILD_C_EXPORT ${SHADOW_BUILD_C_EXPORT_OPTION_STR} OFF)
+option(SHADOW_BUILD_C_EXPORT ${SHADOW_BUILD_C_EXPORT_OPTION_STR} ON)
 message(STATUS "SHADOW_BUILD_C_EXPORT: ${SHADOW_BUILD_C_EXPORT}")
 
 if(SHADOW_BUILD_C_EXPORT)
@@ -215,6 +215,49 @@ if(SHADOW_BUILD_C_EXPORT)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     if(TARGET fpe_export)
         add_library(Shadow::fpe_export ALIAS fpe_export)
+    endif()
+
+    add_library(fpe_export_static STATIC)
+    target_sources(fpe_export_static PRIVATE 
+        ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe_export/fpe_export.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe.cpp)
+    install(
+        FILES
+            ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe_export/fpe_export.h
+        DESTINATION
+            ${SHADOW_INCLUDES_INSTALL_DIR}/shadow/fpe_export
+    )
+    install(
+        FILES
+            ${CMAKE_CURRENT_LIST_DIR}/shadow/fpe/fpe.h
+        DESTINATION
+            ${SHADOW_INCLUDES_INSTALL_DIR}/shadow/fpe
+    )
+    target_compile_features(fpe_export_static PUBLIC cxx_std_14)
+    target_include_directories(fpe_export_static PUBLIC $<BUILD_INTERFACE:${SHADOW_INCLUDES_DIR}>
+                                        $<INSTALL_INTERFACE:${SHADOW_INCLUDES_INSTALL_DIR}>)
+    target_include_directories(fpe_export_static PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+    target_link_libraries(fpe_export_static PRIVATE common)
+    
+    add_dependencies(fpe_export_static OpenSSL::crypto)
+    target_include_directories(fpe_export_static PRIVATE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>)
+    target_include_directories(fpe_export_static PRIVATE $<BUILD_INTERFACE:$<TARGET_PROPERTY:OpenSSL::crypto,BINARY_DIR>>)
+    
+    string(TOLOWER "${CMAKE_SYSTEM_NAME}" LOWER_SYSTEM_NAME)
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" LOWER_PROCESSOR_NAME)
+    if(LOWER_PROCESSOR_NAME STREQUAL "x86_64")
+        set(LOWER_PROCESSOR_NAME "amd64")
+    endif()
+
+    set_target_properties(fpe_export_static PROPERTIES OUTPUT_NAME shadow_fpe_export_${LOWER_SYSTEM_NAME}_${LOWER_PROCESSOR_NAME})
+    shadow_combine_archives(fpe_export_static OpenSSL::crypto)
+    install(TARGETS fpe_export_static EXPORT ShadowTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+    if(TARGET fpe_export_static)
+        add_library(Shadow::fpe_export_static ALIAS fpe_export_static)
     endif()
 endif()
 

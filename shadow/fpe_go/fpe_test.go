@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestKeyGenerate(t *testing.T){
+func TestKeyGenerate(t *testing.T) {
 	keyString, err := KeyGenerate()
 	assert.Nil(t, err)
 	assert.Equal(t, len(keyString), 16)
