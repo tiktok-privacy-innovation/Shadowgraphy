@@ -1,6 +1,10 @@
 # Shadowgraphy
 
+<!-- start-shadowgraphy-content -->
+
 Shadowgraphy is a collection of cryptographic pseudonymization techniques implemented in C/C++ and wrapped in Go.
+
+<!-- end-shadowgraphy-content -->
 
 ## Supported Cryptographic Algorithms
 
